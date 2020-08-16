@@ -1,0 +1,8 @@
+**/*.npy
+**/*.pkl
+**/*.png
+**/*.jpg
+**/*.pyc
+**/*.pth
+.idea
+runs
