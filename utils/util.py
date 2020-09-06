@@ -3,21 +3,21 @@ import jieba
 import csv
 import random
 import logging
+from common.const import Const
 from logging import handlers
 
 def get_corpus(path, tf_idf=False, w2v=False):
     data = csv.reader(open(path, encoding="utf-8"))
     data_list = []
-    for n, d in enumerate(data):
+    for n, text in enumerate(data):
         if n == 0:
             continue
-        _, text = d
         if tf_idf:
-            data_list.append(text)
+            data_list.append(text[0])
         elif w2v:
-            data_list.append(text.split(" "))
+            data_list.append(text[0].split(" "))
         else:  # dl
-            data_list.extend(text.split(" "))
+            data_list.extend(text[0].split(" "))
     return data_list
 
 
@@ -44,3 +44,13 @@ def create_logger(log_path):
     logger.addHandler(th)
 
     return logger
+
+def get_stop_word_list():
+
+    const = Const()
+
+    data_stop_list = open(const.stop_words_path).readlines()
+    data_stop_list = [i.strip() for i in data_stop_list]
+    data_stop_list.append(" ")
+    data_stop_list.append("\n")
+    return data_stop_list

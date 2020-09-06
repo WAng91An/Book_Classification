@@ -2,12 +2,17 @@
 
 ### 数据处理
 
-- 数据清洗
-- 分词：jieba
-- 去除停用词
-- TF-IDF
+1. 数据清洗和分词，将分词后的数据替换原本的 text 保存到三个文件 train_clean.csv, dev_clean.csv, test_clean.csv
+2. data_process/load_data.py
 
-#### 去除停用词
+- 将三个文件的 text 部分合并起来，并且去除 text 中的停用词。保存至新的文件：merge_data_no_stopword.csv
+
+3. data_process/embedding.py
+
+- 加载 merge_data_no_stopword.csv 中的数据训练 TF-IDF, word2vec, fasttext 的词向量
+- 将训练出来的三个词向量保存到 embedding/save
+
+#### 停用词
 
 通常意义上，停用词 (Stop Words) 大致可分为如下两类：
 

@@ -4,5 +4,10 @@
 **/*.jpg
 **/*.pyc
 **/*.pth
+**/*.csv
+**/*.bin
+merge_data_no_stopword.csv
+hit_stopword
+.DS_Store
 .idea
 runs
