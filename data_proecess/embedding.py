@@ -26,6 +26,11 @@ def trainer_tfidf(path):
     # return tfidf.toarray()
 
 def trainer_w2v(path):
+    """
+    corpus=['教授', '长江', '学者', '优秀成果', '集中', '呈现'], ['', '生物质', '发电', '燃料', '供应链', '运营', '模式']
+    :param path:
+    :return:
+    """
     corpus = get_corpus(path, w2v=True)
     w2v = models.Word2Vec(min_count=2,
                           window=3,
@@ -88,5 +93,6 @@ def load_model():
     return tfidf, w2v, fast
 
 
-# if __name__ == '__main__':
+if __name__ == '__main__':
+    w2v = trainer_w2v(const.merge_file_no_stopword_csv)
 #     a = np.load("/Users/wangruiqian/Documents/数据/RSNA/hemorrhage_224_224_3/hemorrhage_slice_label/ID_0a2b6199/19dac1a16e/19.npy")

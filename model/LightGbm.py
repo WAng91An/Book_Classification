@@ -34,8 +34,10 @@ def load():
     global tfidf_model, w2v_embedding, fast_embedding
     tfidf_model, w2v_embedding, fast_embedding = load_model()
 
-    print("fast_embedding输出词表的个数{},w2v_embedding输出词表的个数{}".format(
-        len(fast_embedding.wv.vocab.keys()), len(w2v_embedding.wv.vocab.keys())))
+    #print(fast_embedding["领域"]) # 查看 领域 这个词在 fasttext 下的 embedding 结果
+    #print(w2v_embedding["领域"])  # 查看 领域 这个词在 word2vec 下的 embedding 结果
+
+    print("fast_embedding输出词表的个数{},w2v_embedding输出词表的个数{}".format(len(fast_embedding.wv.vocab.keys()), len(w2v_embedding.wv.vocab.keys())))
 
     print("取词向量成功")
 
@@ -58,6 +60,7 @@ def gen_label_index_mapping():
     # {'文化': 0, '文学': 1, '管理': 2, '社会科学': 3 ...}
     label_index_to_name = dict(zip(label_index, label_name))  # label的标签对应名字的字典
     # {0: '文化', 1: '文学', 2: '管理', 3: '社会科学' ...}
+
     train["labelIndex"] = train.label.map(label_name_to_index)
     test["labelIndex"] = test.label.map(label_name_to_index)
 
@@ -111,35 +114,57 @@ def rm_stop_word():
     print("去除停用词完成")
 
 
-def Find_embedding_with_windows(embedding_matrix, mean=True, k=(2, 3, 4)):
-    '''
-    函数说明：该函数用于获取在大小不同的滑动窗口(k=[2, 3, 4])， 然后进行平均或取最大操作。
-    参数说明：
-       - embedding_matrix：样本中所有词构成的词向量矩阵
-    return: result_list 返回拼接而成的一维词向量
-    '''
-    # embedding_matrix (153, 300)
-    length = len(embedding_matrix)
-    if length == 1:
-        result_list = embedding_matrix
-    else:
-        result_list = []
-        for _k in k:
-            for i in range(length - _k + 1):
-                cur_embedding = np.mean(embedding_matrix[i:i + _k], axis=0)
-                # print("cur_embedding", cur_embedding.shape)
-                result_list.append(cur_embedding)
+# def Find_embedding_with_windows(embedding_matrix, mean=True, k=(2, 3, 4)):
+#     '''
+#     函数说明：该函数用于获取在大小不同的滑动窗口(k=[2, 3, 4])， 然后进行平均或取最大操作。
+#     参数说明：
+#        - embedding_matrix：样本中所有词构成的词向量矩阵
+#     return: result_list 返回拼接而成的一维词向量
+#     '''
+#     # embedding_matrix (153, 300)
+#     length = len(embedding_matrix)
+#     if length == 1:
+#         result_list = embedding_matrix
+#     else:
+#         result_list = []
+#         for _k in k:
+#             for i in range(length - _k + 1):
+#                 cur_embedding = np.mean(embedding_matrix[i:i + _k], axis=0)
+#                 # print("cur_embedding", cur_embedding.shape)
+#                 result_list.append(cur_embedding)
+#
+#     # 由于之前抽取的特征并没有考虑词与词之间交互对模型的影响，
+#     # 对于分类模型来说，贡献最大的不一定是整个句子， 可能是句子中的一部分， 如短语、词组等等。
+#     # 在此基础上我们使用大小不同的滑动窗口(k=[2, 3, 4])， 然后进行平均或取最大操作。
+#     if mean:
+#         result_list = np.mean(result_list, axis=0)
+#     else:
+#         result_list = np.max(result_list, axis=0)
+#     return result_list
 
-    # 由于之前抽取的特征并没有考虑词与词之间交互对模型的影响，
-    # 对于分类模型来说，贡献最大的不一定是整个句子， 可能是句子中的一部分， 如短语、词组等等。
-    # 在此基础上我们使用大小不同的滑动窗口(k=[2, 3, 4])， 然后进行平均或取最大操作。
-    print("result_list", len(result_list))
-    if mean:
-        result_list = np.mean(result_list, axis=0)
+def Find_embedding_with_windows(embedding_matrix, window_size=2, method='mean'):
+    '''
+    @description: generate embedding use window
+    @param {type}
+    embedding_matrix, input sentence's embedding # (153, 300)
+    window_size, 2, 3, 4
+    method, max/ mean
+    @return: ndarray of embedding
+    '''
+    # 最终的词向量
+    result_list = []
+    # 遍历input的长度， 根据窗口的大小获取embedding， 进行mean操作， 然后将得到的结果extend到list中， 最后进行mean max 聚合
+    for k1 in range(len(embedding_matrix)):
+        # 如何当前位置 + 窗口大小 超过input的长度， 则取当前位置到结尾
+        # mean 操作后要reshape 为 （1， 300）大小
+        if int(k1 + window_size) > len(embedding_matrix):
+            result_list.extend(np.mean(embedding_matrix[k1:], axis=0).reshape(1, 300))
+        else:
+            result_list.extend(np.mean(embedding_matrix[k1:k1 + window_size], axis=0).reshape(1, 300))
+    if method == 'mean':
+        return np.mean(result_list, axis=0)
     else:
-        result_list = np.max(result_list, axis=0)
-    print("result_list...", result_list.shape)
-    return result_list
+        return np.max(result_list, axis=0)
 
 
 def max_pooling(embedding_matrix, window_size):
@@ -153,7 +178,16 @@ def max_pooling(embedding_matrix, window_size):
         result.append(np.max(matrix[i]))
     return result
 
-def Find_Label_embedding(word_matrix, label_embedding):
+def softmax(x):
+    '''
+    @description: calculate softmax
+    @param {type}
+    x, ndarray of embedding
+    @return: softmax result
+    '''
+    return np.exp(x) / np.exp(x).sum(axis=0)
+
+def Find_Label_embedding(example_matrix, label_embedding, method="mean"):
     '''
     函数说明：获取到所有类别的 label embedding， 与输入的 word embedding 矩阵相乘， 对其结果进行 softmax 运算，
             对 attention score 与输入的 word embedding 相乘的结果求平均或者取最大
@@ -163,15 +197,33 @@ def Find_Label_embedding(word_matrix, label_embedding):
     -- embedding(np.array 2D): denotes the embedding of all label in data
     return: (np.array 1D) the embedding by join label and word
     '''
-    result_embedding = []
-    # To_Do
-    # 第一步：基于consin相似度计算word embedding向量与label embedding之间的相似度
-    # 第二步：通过softmax获取注意力分布
-    # 第三步：将求得到的注意力分布与输入的word embedding相乘，并对结果进行最大化或求平均
-    return result_embedding
+
+    # 根据矩阵乘法来计算label与word之间的相似度
+    #print("example_matrix", example_matrix.shape) # (153, 300)
+    #print("label_embedding", label_embedding.shape) # (2, 300)
+    similarity_matrix = np.dot(example_matrix, label_embedding.T) / (
+        np.linalg.norm(example_matrix) * (np.linalg.norm(label_embedding)))
+
+    #print("similarity_matrix", similarity_matrix.shape) # (153, 2)
+    # np.linalg.norm: 矩阵整体元素平方和开根号，不保留矩阵二维特性
+    # 然后对相似矩阵进行均值池化，则得到了“类别-词语”的注意力机制
+    # 这里可以使用max-pooling和mean-pooling
+
+    attention = similarity_matrix.max(axis=1)
+    #print(attention.shape) # (153, )
+    attention = softmax(attention)
+    #print(attention.shape) # (153, )
+    # 将样本的词嵌入与注意力机制相乘得到
+    attention_embedding = example_matrix * attention.reshape(attention.shape[0], 1)
+    #print(attention_embedding.shape) #  (153, 300)
+    if method == 'mean':
+        #print(np.mean(attention_embedding, axis=0).shape) #  (300)
+        return np.mean(attention_embedding, axis=0)
+    else:
+        return np.max(attention_embedding, axis=0)
 
 
-def sentence2vec(query):
+def sentence2vec(query, label):
     '''
     函数说明：联合多种特征工程来构造新的样本表示，主要通过以下三种特征工程方法
             第一：利用word-embedding的average pooling和max-pooling
@@ -185,11 +237,17 @@ def sentence2vec(query):
     global fast_embedding, w2v_embedding
     # 将一句话中的每个词转化成 vector，然后合并成 array
     fast_arr = np.array([fast_embedding.wv.get_vector(s) for s in query if s in fast_embedding.wv.vocab.keys()])
-    # print(fast_arr.shape) # (153, 300)
+    label_embedding = np.array([fast_embedding.wv.get_vector(s) for s in label if s in fast_embedding.wv.vocab.keys()])
+
+    #print("query", query) # query  杏林 芳菲 广东 中医药 曹磊 编著 杏林 芳菲 广东 中医药 注重 文化 内涵 挖掘 特殊 技艺 介绍 非 物质 文化遗产 广东 中医药 内涵 技艺 形态 历史 演变 艺术 价值 给予 全面 介绍 深刻 直观 记录 时代 变迁 记录 民间 丰富 生活 图文并茂 生动活泼 富有 艺术 表现力 读者 文化 审美 感受
+    #print("label", label) # label 文化
+    #print(fast_arr.shape) # (153, 300)
+    #print(label_embedding.shape) # (2, 300)
+
     # 在 fast_arr 下滑动获取到的词向量
     if len(fast_arr) > 0:
         windows_fastarr = np.array(Find_embedding_with_windows(fast_arr))
-        result_attention_embedding = Find_Label_embedding(fast_arr, fast_embedding)
+        result_attention_embedding = Find_Label_embedding(fast_arr, label_embedding)
     else:
         # 如果样本中的词都不在字典，则该词向量初始化为0
         # 这里300表示训练词嵌入设置的维度为300
@@ -199,8 +257,8 @@ def sentence2vec(query):
     fast_arr_max = np.max(np.array(fast_arr), axis=0) if len(fast_arr) > 0 else np.zeros(300)
     fast_arr_avg = np.mean(np.array(fast_arr), axis=0) if len(fast_arr) > 0 else np.zeros(300)
 
-    # print("fast_arr_max", fast_arr_max.shape)
-    # print("fast_arr_max", fast_arr_avg.shape)
+    #print("fast_arr_max", fast_arr_max.shape)
+    #print("fast_arr_avg", fast_arr_avg.shape)
 
     fast_arr = np.hstack((fast_arr_avg, fast_arr_max))
     # 将多个embedding进行横向拼接
@@ -220,9 +278,9 @@ def Dimension_Reduction(Train, Test):
     '''
     global max_length
     # To_Do
-    # 特征选择，由于经过特征工程得到的样本表示维度很高，因此需要进行降维 max_length表示降维之后的样本最大的维度。
+    # 特征选择，由于经过特征工程得到的样本表示维度很高，因此需要进行降维 max_length 表示降维之后的样本最大的维度。
     # 这里通过PCA方法降维
-    pca = PCA(n_components=10, svd_solver='full')
+    pca = PCA(n_components=max_length, svd_solver='full')
     pca_train = pca.fit_transform(Train)
     pca_test = pca.fit_transform(Test)
     return pca_train, pca_test
@@ -231,20 +289,26 @@ def Dimension_Reduction(Train, Test):
 def Find_Embedding():
     '''
     函数说明：该函数用于获取经过特征工程之后的样本表示
+    将每个句子进行特征工程得到一个 sentence vector，然后再将这些 vector 合并起来后进行归一化
+    # 将归一化后的结果进行降维
     Return:训练集特征数组(2D)，测试集特征数组(2D)，训练集标签数组（1D）,测试集标签数组（1D）
     '''
+    global train, test
+    print(train)
     print("获取样本表示中...")
     min_max_scaler = preprocessing.MinMaxScaler() # MinMaxScaler：归一到 [ 0，1 ]
     print("sentence2vec...")
-    Train_features = min_max_scaler.fit_transform(np.vstack(train["queryCutRMStopWord"].apply(sentence2vec)))
-    Test_features = min_max_scaler.fit_transform(np.vstack(test["queryCutRMStopWord"].apply(sentence2vec)))
+    Train_features = min_max_scaler.fit_transform(np.vstack(train.apply(lambda row: sentence2vec(row['queryCutRMStopWord'], row['label']), axis=1)))
+    Test_features = min_max_scaler.fit_transform(np.vstack(test.apply(lambda row: sentence2vec(row['queryCutRMStopWord'], row['label']), axis=1)))
     print("获取样本词表示完成")
+    print("降维前 train 的形状：", Train_features.shape)
+    print("降维前 train 的形状：", Test_features.shape)
+    print(Test_features.shape)
     # 通过PCA对样本表示进行降维
     Train_features, Test_features = Dimension_Reduction(Train=Train_features, Test=Test_features)
     Train_label = train["labelIndex"]
     Test_label = test["labelIndex"]
 
-    print("加载训练好的词向量")
     print("Train_features.shape =", Train_features.shape)
     print("Test_features.shape =", Test_features.shape)
     print("Train_label.shape =", Train_label.shape)
@@ -304,15 +368,14 @@ def Grid_Train_model(Train_features, Test_features, Train_label, Test_label):
         MultinomialNB(): nb_parameters,
         LogisticRegression(penalty='l2', solver='lbfgs', tol=1e-6): lr_parameters
     }
+
     # 遍历模型
     for model, parameters in models.items():
         model_name = model.__class__.__name__
-        gsearch = RandomizedSearchCV(
-            model, parameters, scoring='accuracy', cv=3, n_jobs=-1)
+        gsearch = RandomizedSearchCV(model, parameters, scoring='accuracy', cv=3, n_jobs=-1)
         gsearch.fit(Train_features, Train_label)
 
         # 输出最好的参数
-
         print("Best parameters set found on development set:{}".format(gsearch.best_params_))
 
         Test_predict_label = gsearch.predict(Test_features)
