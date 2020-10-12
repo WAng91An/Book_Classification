@@ -3,6 +3,8 @@
 **/*.png
 **/*.jpg
 **/*.pyc
+**/*.json
+**/*.txt
 **/*.pth
 **/*.csv
 **/*.bin

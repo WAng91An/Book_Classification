@@ -5,20 +5,13 @@ import lightgbm as lgb
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.naive_bayes import MultinomialNB
-from sklearn import preprocessing
 from sklearn.svm import SVC
-from sklearn.decomposition import PCA
-from sklearn import metrics
-from gensim import models
-from utils.util import *
-from gensim.test.utils import datapath
-from common.const import Const
-from data_proecess.embedding import load_model
-from sklearn.model_selection import GridSearchCV
+from src.utils.util import *
+from src.utils.config import Config
+from src.embedding.embedding import load_model
 from sklearn import preprocessing
 from sklearn.decomposition import PCA
-from sklearn.externals import joblib
-from sklearn.metrics.pairwise import cosine_similarity
+
 # from bayes_opt import BayesianOptimization
 
 const = Const()
@@ -34,8 +27,8 @@ def load():
     global tfidf_model, w2v_embedding, fast_embedding
     tfidf_model, w2v_embedding, fast_embedding = load_model()
 
-    #print(fast_embedding["领域"]) # 查看 领域 这个词在 fasttext 下的 embedding 结果
-    #print(w2v_embedding["领域"])  # 查看 领域 这个词在 word2vec 下的 embedding 结果
+    #print(fast_embedding["领域"]) # 查看 领域 这个词在 fasttext 下的 model 结果
+    #print(w2v_embedding["领域"])  # 查看 领域 这个词在 word2vec 下的 model 结果
 
     print("fast_embedding输出词表的个数{},w2v_embedding输出词表的个数{}".format(len(fast_embedding.wv.vocab.keys()), len(w2v_embedding.wv.vocab.keys())))
 
@@ -144,12 +137,12 @@ def rm_stop_word():
 
 def Find_embedding_with_windows(embedding_matrix, window_size=2, method='mean'):
     '''
-    @description: generate embedding use window
+    @description: generate model use window
     @param {type}
-    embedding_matrix, input sentence's embedding # (153, 300)
+    embedding_matrix, input sentence's model # (153, 300)
     window_size, 2, 3, 4
     method, max/ mean
-    @return: ndarray of embedding
+    @return: ndarray of model
     '''
     # 最终的词向量
     result_list = []
@@ -182,20 +175,20 @@ def softmax(x):
     '''
     @description: calculate softmax
     @param {type}
-    x, ndarray of embedding
+    x, ndarray of model
     @return: softmax result
     '''
     return np.exp(x) / np.exp(x).sum(axis=0)
 
 def Find_Label_embedding(example_matrix, label_embedding, method="mean"):
     '''
-    函数说明：获取到所有类别的 label embedding， 与输入的 word embedding 矩阵相乘， 对其结果进行 softmax 运算，
-            对 attention score 与输入的 word embedding 相乘的结果求平均或者取最大
-            可以参考论文《Joint embedding of words and labels》获取标签空间的词嵌入
+    函数说明：获取到所有类别的 label model， 与输入的 word model 矩阵相乘， 对其结果进行 softmax 运算，
+            对 attention score 与输入的 word model 相乘的结果求平均或者取最大
+            可以参考论文《Joint model of words and labels》获取标签空间的词嵌入
     parameters:
-    -- example_matrix(np.array 2D): denotes the matrix of words embedding
-    -- embedding(np.array 2D): denotes the embedding of all label in data
-    return: (np.array 1D) the embedding by join label and word
+    -- example_matrix(np.array 2D): denotes the matrix of words model
+    -- model(np.array 2D): denotes the model of all label in data
+    return: (np.array 1D) the model by join label and word
     '''
 
     # 根据矩阵乘法来计算label与word之间的相似度

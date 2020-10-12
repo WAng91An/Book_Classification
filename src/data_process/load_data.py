@@ -1,10 +1,6 @@
-import numpy as np
 import pandas as pd
-import sys
-import csv
-from common.const import Const
-from utils.util import *
-from common.const import *
+from src.utils.util import *
+from src.utils.config import *
 # from gensim import models
 # from sklearn.feature_extraction.text import TfidfVectorizer
 # from sklearn.externals import joblib

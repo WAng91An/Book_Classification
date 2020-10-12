@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-import jieba
 import csv
-import random
 import logging
-from common.const import Const
 from logging import handlers
+from src.utils import config
+import jieba
+import numpy
 
 def get_corpus(path, tf_idf=False, w2v=False):
     data = csv.reader(open(path, encoding="utf-8"))
@@ -45,11 +45,41 @@ def create_logger(log_path):
 
     return logger
 
+def query_cut(query):
+    return list(jieba.cut(query))
+
+
+def wam(sentence, w2v_model, method='mean', aggregate=True):
+    '''
+    @description: 通过word average model 生成句向量
+    @param {type}
+    sentence: 以空格分割的句子
+    w2v_model: word2vec模型
+    method： 聚合方法 mean 或者max
+    aggregate: 是否进行聚合
+    @return:
+    '''
+    arr = np.array([
+        w2v_model.wv.get_vector(s) for s in sentence
+        if s in w2v_model.wv.vocab.keys()
+    ])
+    if not aggregate:
+        return arr
+    if len(arr) > 0:
+        # 第一种方法对一条样本中的词求平均
+        if method == 'mean':
+            return np.mean(np.array(arr), axis=0)
+        # 第二种方法返回一条样本中的最大值
+        elif method == 'max':
+            return np.max(np.array(arr), axis=0)
+        else:
+            raise NotImplementedError
+    else:
+        return np.zeros(300)
+
 def get_stop_word_list():
 
-    const = Const()
-
-    data_stop_list = open(const.stop_words_path).readlines()
+    data_stop_list = open(config.stop_words_path).readlines()
     data_stop_list = [i.strip() for i in data_stop_list]
     data_stop_list.append(" ")
     data_stop_list.append("\n")

@@ -1,6 +1,5 @@
-from data_proecess.embedding import *
-from data_proecess.load_data import *
-from common.const import Const
+from src.data_process.load_data import *
+from src.utils.config import Const
 
 const = Const()
 
