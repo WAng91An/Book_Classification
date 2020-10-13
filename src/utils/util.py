@@ -4,7 +4,10 @@ import logging
 from logging import handlers
 from src.utils import config
 import jieba
-import numpy
+import numpy as np
+import sys
+
+csv.field_size_limit(sys.maxsize)
 
 def get_corpus(path, tf_idf=False, w2v=False):
     data = csv.reader(open(path, encoding="utf-8"))
@@ -46,19 +49,22 @@ def create_logger(log_path):
     return logger
 
 def query_cut(query):
+    """
+    :param query: 句子
+    :return: 句子分词后的结果
+    """
     return list(jieba.cut(query))
 
 
-def wam(sentence, w2v_model, method='mean', aggregate=True):
+def sentence_to_vector(sentence, w2v_model, method='mean', aggregate=True):
     '''
-    @description: 通过word average model 生成句向量
-    @param {type}
     sentence: 以空格分割的句子
     w2v_model: word2vec模型
     method： 聚合方法 mean 或者max
     aggregate: 是否进行聚合
-    @return:
+    @return: 句子中词用对应的 embedding 表示
     '''
+    print("sentence", sentence)
     arr = np.array([
         w2v_model.wv.get_vector(s) for s in sentence
         if s in w2v_model.wv.vocab.keys()
@@ -78,7 +84,9 @@ def wam(sentence, w2v_model, method='mean', aggregate=True):
         return np.zeros(300)
 
 def get_stop_word_list():
-
+    """
+    :return: 停用词 list
+    """
     data_stop_list = open(config.stop_words_path).readlines()
     data_stop_list = [i.strip() for i in data_stop_list]
     data_stop_list.append(" ")

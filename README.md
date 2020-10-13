@@ -2,15 +2,14 @@
 
 ### 数据处理
 
-1. 数据清洗和分词，将分词后的数据替换原本的 text 保存到三个文件 train_clean.csv, dev_clean.csv, test_clean.csv
-2. data_process/load_data.py
+1. data_process/build_corpus.py
 
-- 将三个文件的 text 部分合并起来，并且去除 text 中的停用词。保存至新的文件：merge_data_no_stopword.csv
+- 将三个文件的 title 和 des 部分合并起来成为 text，并且去除 text 中的停用词。保存至新的文件：corpus.csv
 
-3. data_process/embedding.py
+2. data_process/embedding.py
 
-- 加载 merge_data_no_stopword.csv 中的数据训练 TF-IDF, word2vec, fasttext 的词向量
-- 将训练出来的三个词向量保存到 embedding/save
+- 加载 corpus.csv 中的数据训练 TF-IDF, word2vec, fasttext 的词向量
+- 将训练出来的三个词向量保存到 embedding/save/fast.bin、tf_idf.bin、w2v.bin
 
 #### 停用词
 

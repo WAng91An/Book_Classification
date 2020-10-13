@@ -3,7 +3,7 @@ from src.utils.util import *
 from src.utils import config
 from gensim import models
 from sklearn.externals import joblib
-from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 class Embedding():
     def trainer_tfidf(self, path):
@@ -15,13 +15,20 @@ class Embedding():
         :param path:
         :return:
         """
-        corpus = get_corpus(path, tf_idf=True)
-        vectorizer = CountVectorizer()  # 该类会将文本中的词语转换为词频矩阵，矩阵元素a[i][j] 表示j词在i类文本下的词频
-        transformer = TfidfTransformer()  # 该类会统计每个词语的tf-idf权值
-        tfidf = transformer.fit_transform(vectorizer.fit_transform(corpus))  # 第一个fit_transform是计算tf-idf，第二个fit_transform是将文本转为词频矩阵
+        # corpus = get_corpus(path, tf_idf=True)
+        # vectorizer = CountVectorizer()  # 该类会将文本中的词语转换为词频矩阵，矩阵元素a[i][j] 表示j词在i类文本下的词频
+        # transformer = TfidfTransformer()  # 该类会统计每个词语的tf-idf权值
+        # tfidf = transformer.fit_transform(vectorizer.fit_transform(corpus))  # 第一个fit_transform是计算tf-idf，第二个fit_transform是将文本转为词频矩阵
+        #
+        # return tfidf
 
+        corpus = get_corpus(path, tf_idf=True)
+        count_vect = TfidfVectorizer(stop_words=get_stop_word_list(),
+                                     max_df=0.4,
+                                     min_df=0.001,
+                                     ngram_range=(1, 2))
+        tfidf = count_vect.fit(corpus)
         return tfidf
-        # return tfidf.toarray()
 
     def trainer_w2v(self, path):
         """
@@ -103,4 +110,5 @@ class Embedding():
 
 if __name__ == "__main__":
     em = Embedding()
-    em.saver(config.merge_file_no_stopword_csv)
+    # corpus_data_file 为生成的语料库的地址，该文件通过 data_process/build_corpus.py 生成。由三个训练数据生成的
+    em.saver(config.corpus_data_file)

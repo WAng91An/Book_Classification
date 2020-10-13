@@ -1,5 +1,4 @@
 import os
-
 import lightgbm as lgb
 import numpy as np
 import torchvision
@@ -16,27 +15,32 @@ from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 from transformers import BertModel, BertTokenizer
 
-from __init__ import *
-from src.data.mlData import MLData
+from src.data_process.MLData import MLData
 from src.utils import config
+from src.utils.util import *
 from src.utils.config import root_path
-from src.utils.tools import (Grid_Train_model, bayes_parameter_opt_lgb,
-                             query_cut, create_logger, formate_data, get_score)
-from src.utils.feature import (get_embedding_feature, get_img_embedding,
-                               get_lda_features, get_pretrain_embedding,
-                               get_autoencoder_feature, get_basic_feature)
+# from src.utils.tools import (Grid_Train_model, bayes_parameter_opt_lgb,
+#                              query_cut, create_logger, formate_data, get_score)
+# from src.utils.feature import (get_embedding_feature, get_img_embedding,
+#                                get_lda_features, get_pretrain_embedding,
+#                                get_autoencoder_feature, get_basic_feature)
+from src.utils.feature import *
+
 
 
 class Models(object):
+    """
+    获取基于机器学习的文本算法
+    """
     def __init__(self, model_path=None, feature_engineer=False, train_mode=True):
-        # 加载图像处理模型， resnet, resnext, wide resnet， 如果支持 cuda, 则将模型加载到 cuda 中
-        self.res_model = torchvision.models.resnet152(pretrained=True).to(config.device)
-        self.resnext_model = torchvision.models.resnext101_32x8d(pretrained=True).to(config.device)
-        self.wide_model = torchvision.models.wide_resnet101_2(pretrained=True).to(config.device)
-
-        # 加载 bert 模型， 如果支持 cuda, 则将模型加载到 cuda 中
-        self.bert_tonkenizer = BertTokenizer.from_pretrained(config.root_path + '/model/bert')
-        self.bert = BertModel.from_pretrained(config.root_path + '/model/bert').to(config.device)
+        # # 加载图像处理模型， resnet, resnext, wide resnet， 如果支持 cuda, 则将模型加载到 cuda 中
+        # self.res_model = torchvision.models.resnet152(pretrained=True).to(config.device)
+        # self.resnext_model = torchvision.models.resnext101_32x8d(pretrained=True).to(config.device)
+        # self.wide_model = torchvision.models.wide_resnet101_2(pretrained=True).to(config.device)
+        #
+        # # 加载 bert 模型， 如果支持 cuda, 则将模型加载到 cuda 中
+        # self.bert_tonkenizer = BertTokenizer.from_pretrained(config.root_path + '/model/bert')
+        # self.bert = BertModel.from_pretrained(config.root_path + '/model/bert').to(config.device)
 
         # 初始化 MLdataset 类， debug_mode为true 则使用部分数据， train_mode表示是否训练
         self.ml_data = MLData(debug_mode=True, train_mode=train_mode)
@@ -44,12 +48,10 @@ class Models(object):
         # 如果不训练， 则加载训练好的模型，进行预测
         if not train_mode:
             self.load(model_path)
-            labelNameToIndex = json.load(
-                open(config.root_path + '/data/label2id.json',
-                     encoding='utf-8'))
+            labelNameToIndex = json.load(open(config.root_path + '/data/label2id.json', encoding='utf-8'))
             self.ix2label = {v: k for k, v in labelNameToIndex.items()}
         else:
-            # 如果feature_engineer,  则使用lightgbm 进行训练， 反之对比经典机器学习模型
+            # 如果 feature_engineer,  则使用lightgbm 进行训练， 反之对比经典机器学习模型
             if feature_engineer:
                 self.model = lgb.LGBMClassifier(objective='multiclass',
                                                 n_jobs=10,
@@ -66,9 +68,7 @@ class Models(object):
                                                 seed=1440)
             else:
                 self.models = [
-                    RandomForestClassifier(n_estimators=500,
-                                           max_depth=5,
-                                           random_state=0),
+                    RandomForestClassifier(n_estimators=500, max_depth=5, random_state=0),
                     LogisticRegression(solver='liblinear', random_state=0),
                     MultinomialNB(),
                     SVC(),
@@ -87,23 +87,17 @@ class Models(object):
                 ]
 
     def feature_engineer(self):
-        '''
-        @description: This function is building all kings of features
-        @param {type} None
-        @return:
-        X_train, feature of train set
-        X_test, feature of test set
-        y_train, label of train set
-        y_test, label of test set
-        '''
-        print("generate embedding feature ")
-        # 获取tfidf 特征， word2vec 特征， word2vec不进行任何聚合
+
+        print(" generate embedding feature ")
+
+        # 获取 tfidf 特征， word2vec 特征， word2vec不进行任何聚合
         train_tfidf, train = get_embedding_feature(self.ml_data.train,
-                                                   self.ml_data.em.tfidf,
-                                                   self.ml_data.em.w2v)
-        test_tfidf, test = get_embedding_feature(self.ml_data.test,
-                                                 self.ml_data.em.tfidf,
-                                                 self.ml_data.em.w2v)
+                                                   self.ml_data.tfidf,
+                                                   self.ml_data.w2v)
+
+        test_tfidf, test = get_embedding_feature(self.ml_data.dev,
+                                                 self.ml_data.tfidf,
+                                                 self.ml_data.w2v)
 
         print("generate basic feature ")
         # 获取nlp 基本特征
@@ -112,13 +106,13 @@ class Models(object):
 
         print("generate modal feature ")
         # 加载图书封面的文件
-        cover = os.listdir(config.root_path + '/data/book_cover/')
+        cover = os.listdir(config.book_cover_path)
         # 根据title 匹配图书封面
         train['cover'] = train['title'].progress_apply(
-            lambda x: config.root_path + '/data/book_cover/' + x + '.jpg'
+            lambda x: config.book_cover_path + x + '.jpg'
             if x + '.jpg' in cover else '')
         test['cover'] = test.title.progress_apply(
-            lambda x: config.root_path + '/data/book_cover/' + x + '.jpg'
+            lambda x: config.book_cover_path + x + '.jpg'
             if x + '.jpg' in cover else '')
 
         # 根据封面获取封面的embedding
@@ -148,31 +142,31 @@ class Models(object):
         print("generate lda feature ")
         # 生成bag of word格式数据
         train['bow'] = train['queryCutRMStopWord'].apply(
-            lambda x: self.ml_data.em.lda.id2word.doc2bow(x))
+            lambda x: self.ml_data.lda.id2word.doc2bow(x))
         test['bow'] = test['queryCutRMStopWord'].apply(
-            lambda x: self.ml_data.em.lda.id2word.doc2bow(x))
+            lambda x: self.ml_data.lda.id2word.doc2bow(x))
         # 在bag of word 基础上得到lda的embedding
         train['lda'] = list(
-            map(lambda doc: get_lda_features(self.ml_data.em.lda, doc),
+            map(lambda doc: get_lda_features(self.ml_data.lda, doc),
                 train['bow']))
         test['lda'] = list(
-            map(lambda doc: get_lda_features(self.ml_data.em.lda, doc),
+            map(lambda doc: get_lda_features(self.ml_data.lda, doc),
                 test['bow']))
 
         print("generate autoencoder feature ")
         # 获取到autoencoder 的embedding, 根据encoder 获取而不是decoder
         train_ae = get_autoencoder_feature(
             train,
-            self.ml_data.em.ae.max_features,
-            self.ml_data.em.ae.max_len,
-            self.ml_data.em.ae.encoder,
-            tokenizer=self.ml_data.em.ae.tokenizer)
+            self.ml_data.ae.max_features,
+            self.ml_data.ae.max_len,
+            self.ml_data.ae.encoder,
+            tokenizer=self.ml_data.ae.tokenizer)
         test_ae = get_autoencoder_feature(
             test,
-            self.ml_data.em.ae.max_features,
-            self.ml_data.em.ae.max_len,
-            self.ml_data.em.ae.encoder,
-            tokenizer=self.ml_data.em.ae.tokenizer)
+            self.ml_data.ae.max_features,
+            self.ml_data.ae.max_len,
+            self.ml_data.ae.encoder,
+            tokenizer=self.ml_data.ae.tokenizer)
 
         print("formate data")
         #  将所有的特征拼接到一起
@@ -210,22 +204,17 @@ class Models(object):
             print("best param", param)
             return param
 
-    def unbalance_helper(self,
-                         imbalance_method='under_sampling',
-                         search_method='grid'):
-        '''
-        @description: handle unbalance data, then search best param
-        @param {type}
-        imbalance_method,  three option, under_sampling for ClusterCentroids, SMOTE for over_sampling, ensemble for BalancedBaggingClassifier
-        search_method: two options. grid or bayesian optimization
-        @return: None
-        '''
-        print("get all freature")
-        # 生成所有feature
-        self.X_train, self.X_test, self.y_train, self.y_test = self.feature_engineer(
-        )
+    def unbalance_helper(self, imbalance_method='under_sampling', search_method='grid'):
+
+        print("get all feature")
+
+        # 生成所有 feature
+
+        self.X_train, self.X_test, self.y_train, self.y_test = self.feature_engineer()
         model_name = None
+
         # 是否使用不平衡数据处理方式，上采样， 下采样， ensemble
+
         if imbalance_method == 'over_sampling':
             print("Use SMOTE deal with unbalance data ")
             self.X_train, self.y_train = SMOTE().fit_resample(
@@ -248,20 +237,25 @@ class Models(object):
                 random_state=0)
             model_name = 'ensemble'
         print('search best param')
+
         # 使用set_params 将搜索到的最优参数设置为模型的参数
+
         if imbalance_method != 'ensemble':
             param = self.param_search(search_method=search_method)
             param['params']['num_leaves'] = int(param['params']['num_leaves'])
             param['params']['max_depth'] = int(param['params']['max_depth'])
             self.model = self.model.set_params(**param['params'])
         print('fit model ')
+
         # 训练， 并输出模型的结果
+
         self.model.fit(self.X_train, self.y_train)
         Test_predict_label = self.model.predict(self.X_test)
         Train_predict_label = self.model.predict(self.X_train)
         per, acc, recall, f1 = get_score(self.y_train, self.y_test,
                                          Train_predict_label,
                                          Test_predict_label)
+
         # 输出训练集的精确率
         print('Train accuracy %s' % per)
         # 输出测试集的准确率
@@ -311,16 +305,14 @@ class Models(object):
             print(model_name + '_' + 'test F1_score %s' % f1)
 
     def process(self, title, desc):
+
         # 处理数据, 生成模型预测所需要的特征
         df = pd.DataFrame([[title, desc]], columns=['title', 'desc'])
         df['text'] = df['title'] + df['desc']
         df["queryCut"] = df["text"].apply(query_cut)
-        df["queryCutRMStopWord"] = df["queryCut"].apply(
-            lambda x:
-            [word for word in x if word not in self.ml_data.em.stopWords])
+        df["queryCutRMStopWord"] = df["queryCut"].apply(lambda x: [word for word in x if word not in get_stop_word_list()])
 
-        df_tfidf, df = get_embedding_feature(df, self.ml_data.em.tfidf,
-                                             self.ml_data.em.w2v)
+        df_tfidf, df = get_embedding_feature(df, self.ml_data.tfidf, self.ml_data.w2v)
 
         print("generate basic feature ")
         df = get_basic_feature(df)
@@ -328,33 +320,25 @@ class Models(object):
         print("generate modal feature ")
         df['cover'] = ''
 
-        df['res_embedding'] = df.cover.progress_apply(
-            lambda x: get_img_embedding(x, self.res_model))
+        df['res_embedding'] = df.cover.progress_apply(lambda x: get_img_embedding(x, self.res_model))
 
-        df['resnext_embedding'] = df.cover.progress_apply(
-            lambda x: get_img_embedding(x, self.resnext_model))
+        df['resnext_embedding'] = df.cover.progress_apply(lambda x: get_img_embedding(x, self.resnext_model))
 
-        df['wide_embedding'] = df.cover.progress_apply(
-            lambda x: get_img_embedding(x, self.wide_model))
+        df['wide_embedding'] = df.cover.progress_apply(lambda x: get_img_embedding(x, self.wide_model))
 
         print("generate bert feature ")
-        df['bert_embedding'] = df.text.progress_apply(
-            lambda x: get_pretrain_embedding(x, self.bert_tonkenizer, self.bert
-                                             ))
+        df['bert_embedding'] = df.text.progress_apply(lambda x: get_pretrain_embedding(x, self.bert_tonkenizer, self.bert))
 
         print("generate lda feature ")
-        df['bow'] = df['queryCutRMStopWord'].apply(
-            lambda x: self.ml_data.em.lda.id2word.doc2bow(x))
-        df['lda'] = list(
-            map(lambda doc: get_lda_features(self.ml_data.em.lda, doc),
-                df.bow))
+        df['bow'] = df['queryCutRMStopWord'].apply(lambda x: self.ml_data.lda.id2word.doc2bow(x))
+        df['lda'] = list(map(lambda doc: get_lda_features(self.ml_data.lda, doc), df.bow))
 
         print("generate autoencoder feature ")
         df_ae = get_autoencoder_feature(df,
-                                        self.ml_data.em.ae.max_features,
-                                        self.ml_data.em.ae.max_len,
-                                        self.ml_data.em.ae.encoder,
-                                        tokenizer=self.ml_data.em.ae.tokenizer)
+                                        self.ml_data.ae.max_features,
+                                        self.ml_data.ae.max_len,
+                                        self.ml_data.ae.encoder,
+                                        tokenizer=self.ml_data.ae.tokenizer)
 
         print("formate data")
         df['labelIndex'] = 1

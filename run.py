@@ -1,4 +1,4 @@
-from src.data_process.load_data import *
+from src.data_process.build_corpus import *
 from src.utils.config import Const
 
 const = Const()

@@ -7,7 +7,9 @@ from src.utils.util import *
 from src.embedding.embedding import Embedding
 
 class MLData(object):
-
+    """
+    获取用于 ML 模型训练的数据：X_train，X_test，y_train，y_test
+    """
     def __init__(self, debug_mode=False, train_mode=True):
 
         # 加载embedding， 如果不训练， 则不处理数据
@@ -63,12 +65,13 @@ class MLData(object):
         return X_train, X_test, y_train, y_test
 
     def get_feature(self, data, method='word2vec'):
+
         if method == 'tfidf':
             data = [' '.join(query) for query in data["queryCutRMStopWord"]]
             return self.tfidf.transform(data)
         elif method == 'word2vec':
-            return np.vstack(data['queryCutRMStopWord'].apply(lambda x: wam(x, self.em.w2v)[0]))
+            return np.vstack(data['queryCutRMStopWord'].apply(lambda x: sentence_to_vector(x, self.w2v)[0]))
         elif method == 'fasttext':
-            return np.vstack(data['queryCutRMStopWord'].apply(lambda x: wam(x, self.em.fast)[0]))
+            return np.vstack(data['queryCutRMStopWord'].apply(lambda x: sentence_to_vector(x, self.fast)[0]))
         else:
             NotImplementedError
