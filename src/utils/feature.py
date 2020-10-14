@@ -12,6 +12,30 @@ from PIL import Image
 import torchvision.transforms as transforms
 tqdm.pandas(desc="progress-bar") # 不添加这话会报错，AttributeError: 'Series' object has no attribute 'progress_apply'
 
+
+def get_lda_features(lda_model, document):
+    # 基于bag of word 格式数据获取lda的特征
+    topic_importances = lda_model.get_document_topics(document, minimum_probability=0)
+    topic_importances = np.array(topic_importances)
+    return topic_importances[:, 1]
+
+def get_pretrain_embedding(text, tokenizer, model):
+    # 通过bert tokenizer 来处理数据， 然后使用bert model 获取bert embedding
+    text_dict = tokenizer.encode_plus(
+        text,  # Sentence to encode.
+        add_special_tokens=True,  # Add '[CLS]' and '[SEP]'
+        max_length=400,  # Pad & truncate all sentences.
+        ad_to_max_length=True,
+        return_attention_mask=True,  # Construct attn. masks.
+        return_tensors='pt',
+    )
+    input_ids, attention_mask, token_type_ids = text_dict[
+        'input_ids'], text_dict['attention_mask'], text_dict['token_type_ids']
+    _, res = model(input_ids.to(config.device),
+                   attention_mask=attention_mask.to(config.device),
+                   token_type_ids=token_type_ids.to(config.device))
+    return res.detach().cpu().numpy()[0]
+
 def get_transforms():
     # 将图片数据处理为统一格式
     return transforms.Compose([
@@ -23,7 +47,6 @@ def get_transforms():
             std=[0.12221994, 0.12145835, 0.14380469],
         ),
     ])
-
 
 
 def get_img_embedding(cover, model):
@@ -49,15 +72,6 @@ ch2en = {
 }
 
 def tag_part_of_speech(data):
-    '''
-    @description: tag part of speech, then calculate the num of noun, adj and verb
-    @param {type}
-    data, input data
-    @return:
-    noun_count,num of noun
-    adjective_count, num of adj
-    verb_count, num of verb
-    '''
     # 获取文本的词性， 并计算名词，动词， 形容词的个数
     words = [tuple(x) for x in list(pseg.cut(data))]
     noun_count = len(
@@ -70,13 +84,6 @@ def tag_part_of_speech(data):
 
 
 def get_basic_feature(df):
-    '''
-    @description: get_basic_feature, length, capitals number, num_exclamation_marks, num_punctuation, num_question_marks, num_words, num_unique_words .etc
-    @param {type}
-    df, dataframe
-    @return:
-    df, dataframe
-    '''
     # 将title 和 desc 拼接
     df['text'] = df['title'] + df['desc']
     # 分词
@@ -136,6 +143,16 @@ def get_basic_feature(df):
 
 
 def Find_embedding_with_windows(embedding_matrix, window_size=2, method='mean'):
+    """
+    输入的 embedding_matrix 是 [seq_length, 300], 相当于有 seq length 行，每一行是一个 300 长度的 vector。
+    如果 window size 为 2，相当于从第一行开始遍历，每次遍历两行，求这两行的平均值（[2, 300] -> [1, 300]）。
+    遍历一次得到一个 [1, 300] ，把遍历完毕的结果收集起来，放入 reslut_list 。得到 result_list 可能是 [n ,300]
+    其中 n 窗口滑动的次数，然后再进行一次求均值或者 max，使得 [n ,300] -> [1, 300]
+    :param embedding_matrix:[seq_length, 300], 300 通过 embedding model(w2v) 学习出来的 embedding vector
+    :param window_size:
+    :param method:
+    :return:
+    """
     # 最终的词向量
     result_list = []
     # 遍历input的长度， 根据窗口的大小获取embedding， 进行mean操作， 然后将得到的结果extend到list中， 最后进行mean max 聚合
@@ -160,43 +177,63 @@ def softmax(x):
 
 
 def Find_Label_embedding(example_matrix, label_embedding, method='mean'):
-
+    """
+    :param example_matrix: np.array [seq_len, 300]
+    :param label_embedding: np.array(m, 300) m 为 num class
+    :param method:
+    :return:
+    """
     # 根据矩阵乘法来计算label与word之间的相似度
-    similarity_matrix = np.dot(example_matrix, label_embedding.T) / (np.linalg.norm(example_matrix) * (np.linalg.norm(label_embedding)))
+    #print("example_matrix", example_matrix.shape) # (seq_length, 300)
+    #print("label_embedding", label_embedding.shape) # (16, 300)
+    similarity_matrix = np.dot(example_matrix, label_embedding.T) / (
+        np.linalg.norm(example_matrix) * (np.linalg.norm(label_embedding)))
 
+    # print("similarity_matrix", similarity_matrix.shape) # (seq_length, 16)
+    # np.linalg.norm: 矩阵整体元素平方和开根号，不保留矩阵二维特性
     # 然后对相似矩阵进行均值池化，则得到了“类别-词语”的注意力机制
     # 这里可以使用max-pooling和mean-pooling
-    attention = similarity_matrix.max()
+
+    attention = similarity_matrix.max(axis=1)
+    # print(attention.shape) # (seq_length, )
     attention = softmax(attention)
+    # print(attention.shape) # (seq_length, )
     # 将样本的词嵌入与注意力机制相乘得到
-    attention_embedding = example_matrix * attention
+    attention_embedding = example_matrix * attention.reshape(attention.shape[0], 1)
+    # print(attention_embedding.shape) #  (seq_length, 300)
     if method == 'mean':
+        # print(np.mean(attention_embedding, axis=0).shape) #  (300)
         return np.mean(attention_embedding, axis=0)
     else:
         return np.max(attention_embedding, axis=0)
 
 def generate_feature(data, label_embedding, model_name='w2v'):
-
+    """
+    :param data:
+    :param label_embedding:
+    :param model_name:
+    :return:
+    """
     print('generate w2v & fast label max/mean')
     # 首先在预训练的词向量中获取标签的词向量句子,每一行表示一个标签表示
     # 每一行表示一个标签的embedding
     # 计算label embedding 具体参见文档
     data[model_name + '_label_mean'] = data[model_name].progress_apply(
-        lambda x: Find_Label_embedding(x, label_embedding, method='mean'))
+        lambda x: Find_Label_embedding(x, label_embedding, method='mean')) # x: [seq_length, 300], 300 通过 embedding model(w2v) 学习出来的 embedding vector
     data[model_name + '_label_max'] = data[model_name].progress_apply(
         lambda x: Find_Label_embedding(x, label_embedding, method='max'))
 
     print('generate embedding max/mean')
     # 将embedding 进行max, mean聚合
     data[model_name + '_mean'] = data[model_name].progress_apply(
-        lambda x: np.mean(np.array(x), axis=0))
+        lambda x: np.mean(np.array(x), axis=0)) # x: [seq_length, 300], 300 通过 embedding model(w2v) 学习出来的 embedding vector
     data[model_name + '_max'] = data[model_name].progress_apply(
         lambda x: np.max(np.array(x), axis=0))
 
     print('generate embedding window max/mean')
     # 滑窗处理embedding 然后聚合
     data[model_name + '_win_2_mean'] = data[model_name].progress_apply(
-        lambda x: Find_embedding_with_windows(x, 2, method='mean'))
+        lambda x: Find_embedding_with_windows(x, 2, method='mean')) # x: [seq_length, 300], 300 通过 embedding model(w2v) 学习出来的 embedding vector
     data[model_name + '_win_3_mean'] = data[model_name].progress_apply(
         lambda x: Find_embedding_with_windows(x, 3, method='mean'))
     data[model_name + '_win_4_mean'] = data[model_name].progress_apply(
@@ -227,7 +264,7 @@ def get_embedding_feature(data, tfidf, embedding_model):
 
     print("transform w2v")
     # data['w2v'] 就是把 data["queryCutRMStopWord"] 每一行词语组成的 list 中的词语替换成对应的 embedding vector
-    # 每一行是 [seq_len * 300]
+    # 每一行是 np.array[seq_len * 300],
     data['w2v'] = data["queryCutRMStopWord"].apply(lambda x: sentence_to_vector(x, embedding_model, aggregate=False))
 
     # 深度拷贝数据

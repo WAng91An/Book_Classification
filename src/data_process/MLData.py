@@ -15,7 +15,7 @@ class MLData(object):
         # 加载embedding， 如果不训练， 则不处理数据
         self.debug_mode = debug_mode
         self.em = Embedding()
-        self.tfidf, self.w2v, self.fast = self.em.load_model()
+        self.tfidf, self.w2v, self.fast, self.lda = self.em.load_model()
         if train_mode:
             self.preprocessor()
 

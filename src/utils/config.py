@@ -8,6 +8,7 @@ model_path = os.path.join(root_path, "model/save/")
 tfidf_path = os.path.join(model_path, "tf_idf.bin")
 w2v_path = os.path.join(model_path, "w2v.bin")
 fasttext_path = os.path.join(model_path, "fast.bin")
+lda_path = os.path.join(model_path, "lda.bin")
 
 train_data_path = "/Users/wangruiqian/Documents/数据/京东图书数据集/train.csv"
 dev_data_path = "/Users/wangruiqian/Documents/数据/京东图书数据集/dev.csv"

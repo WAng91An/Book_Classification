@@ -4,6 +4,9 @@ from src.utils import config
 from gensim import models
 from sklearn.externals import joblib
 from sklearn.feature_extraction.text import TfidfVectorizer
+import joblib
+from gensim.models import LdaMulticore
+import gensim
 
 class Embedding():
     def trainer_tfidf(self, path):
@@ -61,17 +64,19 @@ class Embedding():
         fast = models.FastText(corpus, size=300, window=3, min_count=2)
         return fast
 
-    # def trainer_lda(path):
-    #     data_text = get_corpus(path, w2v=True)
-    #     id2word = gensim.corpora.Dictionary(data_text)
-    #     corpus = [id2word.doc2bow(text) for text in data_text]
-    #     LDAmodel = LdaMulticore(corpus=corpus,
-    #                                  id2word=id2word,
-    #                                  num_topics=30,
-    #                                  workers=4,
-    #                                  chunksize=4000,
-    #                                  passes=7,
-    #                                  alpha='asymmetric')
+    def train_lda(self, path):
+        print('train lda')
+        corpus = get_corpus(path, w2v=True)
+        id2word = gensim.corpora.Dictionary(corpus)
+        corpus = [id2word.doc2bow(text) for text in corpus]
+        LDAmodel = LdaMulticore(corpus=corpus,
+                                     id2word=id2word,
+                                     num_topics=30,
+                                     workers=4,
+                                     chunksize=4000,
+                                     passes=7,
+                                     alpha='asymmetric')
+        return LDAmodel
 
     def saver(self, path):
         '''
@@ -91,6 +96,9 @@ class Embedding():
         joblib.dump(fast, config.fasttext_path)
         print('save fast model')
 
+        LDAmodel = self.train_lda(path)
+        joblib.dump(LDAmodel, config.lda_path)
+        print('save lda model')
 
     def load_model(self):
         '''
@@ -106,7 +114,9 @@ class Embedding():
         w2v = joblib.load(config.w2v_path)
         print('load fast_embedding model')
         fast = joblib.load(config.fasttext_path)
-        return tfidf, w2v, fast
+        print('load lda model')
+        lda = joblib.load(config.lda_path)
+        return tfidf, w2v, fast, lda
 
 if __name__ == "__main__":
     em = Embedding()

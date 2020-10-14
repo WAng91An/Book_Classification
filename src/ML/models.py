@@ -18,6 +18,7 @@ from transformers import BertModel, BertTokenizer
 from src.data_process.MLData import MLData
 from src.utils import config
 from src.utils.util import *
+from src.utils.tools import *
 from src.utils.config import root_path
 # from src.utils.tools import (Grid_Train_model, bayes_parameter_opt_lgb,
 #                              query_cut, create_logger, formate_data, get_score)
@@ -33,14 +34,14 @@ class Models(object):
     获取基于机器学习的文本算法
     """
     def __init__(self, model_path=None, feature_engineer=False, train_mode=True):
-        # # 加载图像处理模型， resnet, resnext, wide resnet， 如果支持 cuda, 则将模型加载到 cuda 中
-        # self.res_model = torchvision.models.resnet152(pretrained=True).to(config.device)
-        # self.resnext_model = torchvision.models.resnext101_32x8d(pretrained=True).to(config.device)
-        # self.wide_model = torchvision.models.wide_resnet101_2(pretrained=True).to(config.device)
-        #
-        # # 加载 bert 模型， 如果支持 cuda, 则将模型加载到 cuda 中
-        # self.bert_tonkenizer = BertTokenizer.from_pretrained(config.root_path + '/model/bert')
-        # self.bert = BertModel.from_pretrained(config.root_path + '/model/bert').to(config.device)
+        # 加载图像处理模型， resnet, resnext, wide resnet， 如果支持 cuda, 则将模型加载到 cuda 中
+        self.res_model = torchvision.models.resnet152(pretrained=True).to(config.device)
+        self.resnext_model = torchvision.models.resnext101_32x8d(pretrained=True).to(config.device)
+        self.wide_model = torchvision.models.wide_resnet101_2(pretrained=True).to(config.device)
+
+        # 加载 bert 模型， 如果支持 cuda, 则将模型加载到 cuda 中
+        self.bert_tonkenizer = BertTokenizer.from_pretrained(config.root_path + '/model/bert')
+        self.bert = BertModel.from_pretrained(config.root_path + '/model/bert').to(config.device)
 
         # 初始化 MLdataset 类， debug_mode为true 则使用部分数据， train_mode表示是否训练
         self.ml_data = MLData(debug_mode=True, train_mode=train_mode)
@@ -90,10 +91,24 @@ class Models(object):
 
         print(" generate embedding feature ")
 
-        # 获取 tfidf 特征， word2vec 特征， word2vec不进行任何聚合
+        # 获取 tfidf 特征， word2vec 特征， word2vec 不进行任何聚合
         train_tfidf, train = get_embedding_feature(self.ml_data.train,
                                                    self.ml_data.tfidf,
                                                    self.ml_data.w2v)
+
+        # train 是通过 pandas 创建的一个对象，get_embedding_feature 后得到的列为：
+        # w2v: 一条句子中的词换成 w2v 模型编码的 vector。该列的每一行为：[seq, 300]
+        # w2v_label_mean：获取句子 embedding ([seq, 300]) 与标签之间的关系特征。该列的每一行为：[300]
+        # w2v_label_max：获取句子 embedding ([seq, 300]) 与标签之间的关系特征。该列的每一行为：[300]
+        # w2v_mean：[seq, 300] -> [300]
+        # w2v_max：[seq, 300] -> [300]
+        # w2v_win_2_mean：窗口滑动思想提取特征，该列的每一行为：[300]
+        # w2v_win_3_mean
+        # w2v_win_4_mean
+        # w2v_win_2_max
+        # w2v_win_3_max
+        # w2v_win_4_max
+
 
         test_tfidf, test = get_embedding_feature(self.ml_data.dev,
                                                  self.ml_data.tfidf,
@@ -154,24 +169,26 @@ class Models(object):
                 test['bow']))
 
         print("generate autoencoder feature ")
-        # 获取到autoencoder 的embedding, 根据encoder 获取而不是decoder
-        train_ae = get_autoencoder_feature(
-            train,
-            self.ml_data.ae.max_features,
-            self.ml_data.ae.max_len,
-            self.ml_data.ae.encoder,
-            tokenizer=self.ml_data.ae.tokenizer)
-        test_ae = get_autoencoder_feature(
-            test,
-            self.ml_data.ae.max_features,
-            self.ml_data.ae.max_len,
-            self.ml_data.ae.encoder,
-            tokenizer=self.ml_data.ae.tokenizer)
+
+        # 获取到 autoencoder 的embedding, 根据encoder 获取而不是decoder
+        # TODO
+        # train_ae = get_autoencoder_feature(
+        #     train,
+        #     self.ml_data.ae.max_features,
+        #     self.ml_data.ae.max_len,
+        #     self.ml_data.ae.encoder,
+        #     tokenizer=self.ml_data.ae.tokenizer)
+        # test_ae = get_autoencoder_feature(
+        #     test,
+        #     self.ml_data.ae.max_fe atures,
+        #     self.ml_data.ae.max_len,
+        #     self.ml_data.ae.encoder,
+        #     tokenizer=self.ml_data.ae.tokenizer)
 
         print("formate data")
         #  将所有的特征拼接到一起
-        train = formate_data(train, train_tfidf, train_ae)
-        train = formate_data(test, test_tfidf, test_ae)
+        train = formate_data(train, train_tfidf) # train = formate_data(train, train_tfidf, train_ae)
+        test = formate_data(test, test_tfidf) # test = formate_data(test, test_tfidf, test_ae)
         #  生成训练，测试的数据
         cols = [x for x in train.columns if str(x) not in ['labelIndex']]
         X_train = train[cols]
@@ -334,15 +351,15 @@ class Models(object):
         df['lda'] = list(map(lambda doc: get_lda_features(self.ml_data.lda, doc), df.bow))
 
         print("generate autoencoder feature ")
-        df_ae = get_autoencoder_feature(df,
-                                        self.ml_data.ae.max_features,
-                                        self.ml_data.ae.max_len,
-                                        self.ml_data.ae.encoder,
-                                        tokenizer=self.ml_data.ae.tokenizer)
+        # df_ae = get_autoencoder_feature(df,
+        #                                 self.ml_data.ae.max_features,
+        #                                 self.ml_data.ae.max_len,
+        #                                 self.ml_data.ae.encoder,
+        #                                 tokenizer=self.ml_data.ae.tokenizer)
 
         print("formate data")
         df['labelIndex'] = 1
-        df = formate_data(df, df_tfidf, df_ae)
+        df = formate_data(df, df_tfidf) #, df_ae)
         cols = [x for x in df.columns if str(x) not in ['labelIndex']]
         X_train = df[cols]
         return X_train
