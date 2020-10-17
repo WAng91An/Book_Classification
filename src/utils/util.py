@@ -64,7 +64,6 @@ def sentence_to_vector(sentence, w2v_model, method='mean', aggregate=True):
     aggregate: 是否进行聚合
     @return: 句子中词用对应的 embedding 表示
     '''
-    print("sentence", sentence)
     arr = np.array([
         w2v_model.wv.get_vector(s) for s in sentence
         if s in w2v_model.wv.vocab.keys()

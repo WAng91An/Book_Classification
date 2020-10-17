@@ -261,6 +261,7 @@ def get_embedding_feature(data, tfidf, embedding_model):
 
     tfidf_data = pd.DataFrame(tfidf.transform(data["queryCutRMStopWords"].tolist()).toarray())
     tfidf_data.columns = ['tfidf' + str(i) for i in range(tfidf_data.shape[1])]
+    # tfidf_data 的每一行是该句子的 tfidf 值（一行有 7000 多个值，这是语料库中统计出来的词的数）
 
     print("transform w2v")
     # data['w2v'] 就是把 data["queryCutRMStopWord"] 每一行词语组成的 list 中的词语替换成对应的 embedding vector

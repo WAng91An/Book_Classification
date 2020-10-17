@@ -152,6 +152,7 @@ def get_score(Train_label, Test_label, Train_predict_label,
 
 def formate_data(train, train_tfidf):
     # 将数据拼接到一起
+    # pd.concat([train[[...]], train_tfidf, ], axis=1)
     Data = pd.concat([
         train[[
             'labelIndex', 'length', 'capitals', 'caps_vs_length',
@@ -164,9 +165,9 @@ def formate_data(train, train_tfidf):
         ]], train_tfidf
     ] + [
         pd.DataFrame(
-            train[i].tolist(),
-            columns=[i + str(x) for x in range(train[i].iloc[0].shape[0])])
-        for i in [
+            train[feature_type].tolist(),
+            columns=[feature_type + str(x) for x in range(train[feature_type].iloc[0].shape[0])])
+        for feature_type in [
             'w2v_label_mean', 'w2v_label_max', 'w2v_mean', 'w2v_max',
             'w2v_win_2_mean', 'w2v_win_3_mean', 'w2v_win_4_mean',
             'w2v_win_2_max', 'w2v_win_3_max', 'w2v_win_4_max', 'res_embedding',
