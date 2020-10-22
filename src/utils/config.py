@@ -15,6 +15,10 @@ dev_data_path = "/Users/wangruiqian/Documents/数据/京东图书数据集/dev.c
 test_data_path = "/Users/wangruiqian/Documents/数据/京东图书数据集/test.csv"
 book_cover_path = "/Users/wangruiqian/Documents/数据/京东图书数据集/book_cover/"
 
+train_clean_path = "/Users/wangruiqian/Documents/数据/京东图书数据集/train_clean.csv"
+dev_clean_path = "/Users/wangruiqian/Documents/数据/京东图书数据集/dev_clean.csv"
+test_clean_path = "/Users/wangruiqian/Documents/数据/京东图书数据集/test_clean.csv"
+
 stop_words_path = os.path.join(root_path,'data/hit_stopword')
 pad_size = 32
 batch_size = 256

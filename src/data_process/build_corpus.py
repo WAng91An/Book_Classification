@@ -1,9 +1,8 @@
 import pandas as pd
 from src.utils.util import *
 from src.utils import config
-# from gensim import models
-# from sklearn.feature_extraction.text import TfidfVectorizer
-# from sklearn.externals import joblib
+import tqdm
+
 class Build_Corpus(object):
 
     def load_data(self):
@@ -59,9 +58,52 @@ class Build_Corpus(object):
 
             csvfile.close()
 
+    def clean_data(self, origin_file_path, clean_file_path):
+        """
+        将 origin_file_path 的 csv 文件进行清洗后写入到 clean_file_path
+        """
+        print("清洗数据中...")
+        data = pd.read_csv(origin_file_path, sep='\t')
+        data["text_clean"] = data['title'] + data['desc']
+        data["text_clean"] = data["text_clean"].apply(query_cut)
+        data['text_clean'] = data["text_clean"].apply(lambda x: " ".join(x))
+
+        data_text = list(data.text_clean)
+
+        datatext = []
+        for i in range(len(data_text)):
+            datatext.append(data_text[i].split(' '))
+
+        data_label = list(data.label)
+
+        stopWords = get_stop_word_list()
+
+        print("获得停用词...")
+
+        with open(clean_file_path, "w", newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerows([["text", "label"]])
+            for text, label in zip(datatext, data_label):
+
+                line_text = ""
+                for word in text:
+                    if word not in stopWords:
+                        line_text = line_text + " " + word
+                # print(line_text)
+                writer.writerows([[line_text, label]])
+
+            csvfile.close()
+
 if __name__ == '__main__':
+
     build_corpus = Build_Corpus()
-    # 将提供的三个数据文件，train，test，dev 合并起来。并获取到停用词
-    data, data_text, datatext, stopWords = build_corpus.load_data()
-    # 将三个数据文件中 text 部分合并到一个 corpus.csv，并且去除掉停用词
-    build_corpus.write_csv(datatext, stopWords)
+    # # 将提供的三个数据文件，train，test，dev 合并起来。并获取到停用词
+    # data, data_text, datatext, stopWords = build_corpus.load_data()
+    # # 将三个数据文件中 text 部分合并到一个 corpus.csv，并且去除掉停用词
+    # build_corpus.write_csv(datatext, stopWords)
+
+
+    # 生成清洗后的数据 train_clean.csv, test_clean.csv, dev_clean.csv
+    build_corpus.clean_data(config.train_data_path, config.train_clean_path)
+    build_corpus.clean_data(config.test_data_path, config.test_clean_path)
+    build_corpus.clean_data(config.dev_data_path, config.dev_clean_path)

@@ -21,6 +21,14 @@ from sklearn.feature_selection import RFECV
 from sklearn.model_selection import GridSearchCV, StratifiedKFold
 from skopt import BayesSearchCV
 from tqdm import tqdm
+from datetime import timedelta
+import time
+
+def get_time_dif(start_time):
+    """获取已使用时间"""
+    end_time = time.time()
+    time_dif = end_time - start_time
+    return timedelta(seconds=int(round(time_dif)))
 
 
 def Grid_Train_model(model, Train_features, Test_features, Train_label,
@@ -36,7 +44,7 @@ def Grid_Train_model(model, Train_features, Test_features, Train_label,
         'reg_alpha': [5, 10],
         'reg_lambda': [10, 30, 50]
     }
-    # 有了gridsearch我们便不需要fit函数
+    # 有了 gridsearch 我们便不需要fit函数
     gsearch = GridSearchCV(model,
                            param_grid=parameters,
                            scoring='accuracy',
