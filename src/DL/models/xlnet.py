@@ -16,8 +16,7 @@ class Model(nn.Module):
 
     def forward(self, x):
         context = x[0]  # 输入的句子
-        mask = x[
-            1]  # 对padding部分进行mask，和句子一个size，padding部分用0表示，如：[1, 1, 1, 1, 0, 0]
+        mask = x[1]  # 对padding部分进行mask，和句子一个size，padding部分用0表示，如：[1, 1, 1, 1, 0, 0]
         token_type_ids = x[2]
         _, pooled = self.xlnet(context,
                                attention_mask=mask,

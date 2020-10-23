@@ -22,7 +22,7 @@ class Model(nn.Module):
         H, _ = self.lstm(emb)  # [batch_size, seq_len, hidden_size * num_direction]=[128, 32, 256]
 
         M = self.tanh1(H)  # [128, 32, 256]
-        # M = torch.tanh(torch.matmul(H, self.u))
+        #  M = torch.tanh(torch.matmul(H, self.u))
         alpha = F.softmax(torch.matmul(M, self.w), dim=1).unsqueeze(-1)  # [128, 32, 1]
         out = H * alpha  # [128, 32, 256]
         out = torch.sum(out, 1)  # [128, 256]

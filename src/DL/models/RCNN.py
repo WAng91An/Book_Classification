@@ -13,7 +13,7 @@ class Model(nn.Module):
         self.fc = nn.Linear(config.hidden_size * 2 + config.embed, config.num_classes)
 
     def forward(self, x):
-        embed = self.embedding(x[0])  # [batch_size, seq_len, embeding]=[64, 32, 64]
+        embed = self.embedding(x[0])  #  [batch_size, seq_len, embeding]=[64, 32, 64]
         out, _ = self.lstm(embed)
         out = torch.cat((embed, out), 2)
         out = F.relu(out)

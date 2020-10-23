@@ -74,7 +74,7 @@ class Scaled_Dot_Product_Attention(nn.Module):
             V: [batch_size, len_V, dim_V]
             scale: 缩放因子 论文为根号dim_K
         Return:
-            self-attention后的张量，以及attention张量
+            self-attention 后的张量，以及attention张量
         '''
         attention = torch.matmul(Q, K.permute(0, 2, 1))
         if scale:

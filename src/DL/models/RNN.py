@@ -14,5 +14,5 @@ class Model(nn.Module):
     def forward(self, x):
         out = self.embedding(x[0])  # [batch_size, seq_len, embeding]=[128, 32, 300]
         out, _ = self.lstm(out)
-        out = self.fc(out[:, -1, :])  # 句子最后时刻的 hidden state
+        out = self.fc(out[:, -1, :])  # 句子最后时刻 的 hidden state
         return out

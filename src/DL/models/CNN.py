@@ -21,7 +21,7 @@ class Model(nn.Module):
         x = F.relu(conv(x)).squeeze(3)
         # x: torch.Size([32, 256, 127])
         x = F.max_pool1d(x, x.size(2)).squeeze(2)
-        # torch.Size([32, 256, 1]) -> torch.Size([32, 256])
+        # torch.Size([32, 256, 1]) ->  torch.Size([32, 256])
 
         return x
 

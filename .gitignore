@@ -4,6 +4,7 @@
 **/*.jpg
 **/*.pyc
 **/*.json
+**/*.model
 **/*.txt
 **/*.pth
 **/*.csv

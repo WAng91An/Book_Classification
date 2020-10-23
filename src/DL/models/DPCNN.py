@@ -19,7 +19,7 @@ class Model(nn.Module):
 
     def forward(self, x):
         x = self.embedding(x)
-        x = x.unsqueeze(1)  # [batch_size, 250, seq_len, 1]
+        x = x.unsqueeze(1)  #  [batch_size, 250, seq_len, 1]
         x = self.conv_region(x)  # [batch_size, 250, seq_len-3+1, 1]
 
         x = self.padding1(x)  # [batch_size, 250, seq_len, 1]

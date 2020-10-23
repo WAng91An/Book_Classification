@@ -36,7 +36,7 @@ def train(config, model, train_iter, dev_iter, test_iter):
         print('User Adam...')
         print(config.device)
         optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
-        # 学习率指数衰减，每次epoch：学习率 = gamma * 学习率
+        # 学习率指数衰减，每次 epoch：学习率 = gamma * 学习率
         # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
     else:
         print('User AdamW...')

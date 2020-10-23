@@ -125,7 +125,6 @@ if __name__ == '__main__':
                                  drop_last=True,
                                  collate_fn=collate_fn)
 
-    # train
     # conf.n_vocab = dictionary.max_vocab_size
 
     model = x.Model(config).to(config.device)
