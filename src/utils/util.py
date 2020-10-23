@@ -6,8 +6,10 @@ from src.utils import config
 import jieba
 import numpy as np
 import sys
+import torch
 
 csv.field_size_limit(sys.maxsize)
+
 
 def get_corpus(path, tf_idf=False, w2v=False):
     data = csv.reader(open(path, encoding="utf-8"))

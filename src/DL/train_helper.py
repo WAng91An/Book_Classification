@@ -31,13 +31,13 @@ def init_network(model, method='xavier', exclude='embedding', seed=123):
 def train(config, model, train_iter, dev_iter, test_iter):
     start_time = time.time()
     model.train()
-    if config.model_name.isupper():
+
+    if config.dl_model_name.isupper():
         print('User Adam...')
         print(config.device)
-        optimizer = torch.optim.Adam(model.parameters(),
-                                     lr=config.learning_rate)
+        optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
         # 学习率指数衰减，每次epoch：学习率 = gamma * 学习率
-#         scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
+        # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
     else:
         print('User AdamW...')
         print(config.device)
@@ -57,16 +57,10 @@ def train(config, model, train_iter, dev_iter, test_iter):
             0.0
         }]
         # optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
-        optimizer = AdamW(optimizer_grouped_parameters,
-                          lr=config.learning_rate,
-                          eps=config.eps)
+        optimizer = AdamW(optimizer_grouped_parameters, lr=config.learning_rate, eps=config.eps)
 
+       # scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=0, num_training_steps=((len(train_iter) * num_train_epochs) // (config.batch_size * config.gradient_accumulation_steps)) + 1000)
 
-#         scheduler = get_linear_schedule_with_warmup(
-#                                 optimizer,
-#                                 num_warmup_steps=0,
-#                                 num_training_steps=((len(train_iter) * num_train_epochs) // \
-#                                                     (config.batch_size * config.gradient_accumulation_steps)) + 1000)
     total_batch = 0  # 记录进行到多少batch
     dev_best_loss = float('inf')
     last_improve = 0  # 记录上次验证集loss下降的batch数
@@ -84,7 +78,7 @@ def train(config, model, train_iter, dev_iter, test_iter):
             loss = F.cross_entropy(outputs, labels)
             loss.backward()
             optimizer.step()
-            #             scheduler.step()
+            # scheduler.step()
             if total_batch % 1000 == 0 and total_batch != 0:
                 # 每多少轮输出在训练集和验证集上的效果
                 true = labels.data.cpu()
@@ -100,9 +94,7 @@ def train(config, model, train_iter, dev_iter, test_iter):
                     improve = ''
                 time_dif = get_time_dif(start_time)
                 msg = 'Iter: {0:>6},  Train Loss: {1:>5.2},  Train Acc: {2:>6.2%},  Val Loss: {3:>5.2},  Val Acc: {4:>6.2%},  Time: {5} {6}'
-                print(
-                    msg.format(total_batch, loss.item(), train_acc, dev_loss,
-                               dev_acc, time_dif, improve))
+                print(msg.format(total_batch, loss.item(), train_acc, dev_loss, dev_acc, time_dif, improve))
                 model.train()
             total_batch += 1
             if total_batch - last_improve > config.require_improvement:

@@ -12,12 +12,11 @@ from src.data_process.dictionary import Dictionary
 from src.utils import config
 from transformers import BertTokenizer, RobertaTokenizer, XLNetTokenizer
 
-
 parser = argparse.ArgumentParser(description='Chinese Text Classification')
 parser.add_argument(
     '--model',
     type=str,
-    default='bert',
+    default='CNN',
     # required=True,
     help='choose a model: CNN, RNN, RCNN, RNN_Att, DPCNN, Transformer')
 parser.add_argument('--word',
@@ -25,7 +24,7 @@ parser.add_argument('--word',
                     type=bool,
                     help='True for word, False for char')
 parser.add_argument('--max_length',
-                    default=400,
+                    default=128,
                     type=int,
                     help='True for word, False for char')
 parser.add_argument('--dictionary',
@@ -36,26 +35,26 @@ args = parser.parse_args()
 
 if __name__ == '__main__':
 
-    model_name = args.model
+    config.dl_model_name = args.model
 
-    x = import_module('models.' + model_name)
+    x = import_module('models.' + config.dl_model_name)
 
     # bert 模型加载 tokenizer 和 设置超参数
-    if model_name in ['bert', 'xlnet', 'roberta']:
+    if config.dl_model_name in ['bert', 'xlnet', 'roberta']:
 
-        config.bert_path = config.root_path + '/model/' + model_name + '/'
+        config.bert_path = config.root_path + '/model/' + config.dl_model_name + '/'
 
-        if 'bert' in model_name:
+        if 'bert' in config.dl_model_name:
             config.tokenizer = BertTokenizer.from_pretrained(config.bert_path)
-        elif 'xlnet' in model_name:
+        elif 'xlnet' in config.dl_model_name:
             config.tokenizer = XLNetTokenizer.from_pretrained(config.bert_path)
-        elif 'roberta' in model_name:
+        elif 'roberta' in config.dl_model_name:
             config.tokenizer = RobertaTokenizer.from_pretrained(config.bert_path)
         else:
             raise NotImplementedError
 
-        config.save_path = config.root_path + '/model/saved_dict/' + model_name + '.ckpt'  # 模型训练结果
-        config.log_path = config.root_path + '/logs/' + model_name
+        config.save_path = config.root_path + '/model/saved_dict/' + config.dl_model_name + '.ckpt'  # 模型训练结果
+        config.log_path = config.root_path + '/logs/' + config.dl_model_name
         config.hidden_size = 768
         config.eps = 1e-8
         config.gradient_accumulation_steps = 1
@@ -71,7 +70,7 @@ if __name__ == '__main__':
     start_time = time.time()
 
     # 读取数据
-    data = pd.read_csv(config.train_clean_path)
+    data = pd.read_csv(config.train_clean_path).dropna()
     if args.word:
         data = data['text'].values.tolist()
     else:
@@ -80,13 +79,14 @@ if __name__ == '__main__':
     # 生成字典
     if args.dictionary is None:
 
-        dictionary = Dictionary()
+        dictionary = Dictionary(min_count=5)
         dictionary.build_dictionary(data)
         del data
         joblib.dump(dictionary, config.root_path + '/model/vocab.bin')
-    else:
-        dictionary = joblib.load(args.dictionary)
 
+    else:
+
+        dictionary = joblib.load(args.dictionary)
 
     if not args.model.isupper():
         tokenizer = config.tokenizer
@@ -129,7 +129,8 @@ if __name__ == '__main__':
     # conf.n_vocab = dictionary.max_vocab_size
 
     model = x.Model(config).to(config.device)
-    if model_name != 'Transformer':
+
+    if config.dl_model_name != 'Transformer':
         init_network(model)
     print(model.parameters)
 
