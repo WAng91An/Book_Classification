@@ -9,6 +9,7 @@
 **/*.pth
 **/*.csv
 **/*.bin
+.DS_Store
 merge_data_no_stopword.csv
 hit_stopword
 .DS_Store
