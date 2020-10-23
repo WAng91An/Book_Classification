@@ -17,7 +17,8 @@ parser = argparse.ArgumentParser(description='Chinese Text Classification')
 parser.add_argument(
     '--model',
     type=str,
-    required=True,
+    default='bert',
+    # required=True,
     help='choose a model: CNN, RNN, RCNN, RNN_Att, DPCNN, Transformer')
 parser.add_argument('--word',
                     default=True,
@@ -70,16 +71,10 @@ if __name__ == '__main__':
     start_time = time.time()
 
     # 读取数据
-    data = pd.read_csv(config.train_clean_path, sep='\t')
+    data = pd.read_csv(config.train_clean_path)
     if args.word:
-        print("data['text']", data['text'])
-        print("data['text'].values", data['text'].values)
-        print("data['text'].values.tolist()", data['text'].values.tolist())
         data = data['text'].values.tolist()
     else:
-        print("data['text'][0]", data['text'][0])
-        print("data['text'][0]1", "".join(data['text'][0].split()))
-        print("data['text'][0]2", " ".join("".join(data['text'][0].split())))
         data = data['text'].apply(lambda x: " ".join("".join(x.split())))
 
     # 生成字典
@@ -99,7 +94,7 @@ if __name__ == '__main__':
         tokenizer = None
 
     # dataset and dataloader
-    train_dataset = MyDataset(config.train_file,
+    train_dataset = MyDataset(config.train_clean_path,
                               dictionary,
                               args.max_length,
                               tokenizer=tokenizer,
@@ -109,7 +104,7 @@ if __name__ == '__main__':
                                   shuffle=True,
                                   drop_last=True,
                                   collate_fn=collate_fn)
-    dev_dataset = MyDataset(config.dev_file,
+    dev_dataset = MyDataset(config.dev_clean_path,
                             dictionary,
                             args.max_length,
                             tokenizer=tokenizer,
@@ -119,7 +114,7 @@ if __name__ == '__main__':
                                 shuffle=True,
                                 drop_last=True,
                                 collate_fn=collate_fn)
-    test_dataset = MyDataset(config.test_file,
+    test_dataset = MyDataset(config.test_clean_path,
                              dictionary,
                              args.max_length,
                              tokenizer=tokenizer,

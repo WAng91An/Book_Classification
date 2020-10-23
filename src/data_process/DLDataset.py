@@ -5,20 +5,20 @@ from torch.utils.data import Dataset
 from src.utils import config
 
 class MyDataset(Dataset):
-    def __init__(self,
-                 path,
-                 dictionary=None,
-                 max_length=128,
-                 tokenizer=None,
-                 word=False):
+    def __init__(self, path, dictionary=None, max_length=128, tokenizer=None, word=False):
         super(MyDataset, self).__init__()
-        self.data = pd.read_csv(path, sep='\t').dropna()
+
+        self.data = pd.read_csv(path).dropna()
+
         with open(config.root_path + '/data/label2id.json', 'r') as f:
             self.label2id = json.load(f)
+
         self.data['category_id'] = self.data['label'].map(self.label2id)
+
         if not word:
             self.data['text'] = self.data['text'].apply(
                 lambda x: " ".join("".join(x.split())))
+
         if tokenizer is not None:
             self.model_name = 'bert'
             self.tokenizer = tokenizer
@@ -26,15 +26,19 @@ class MyDataset(Dataset):
         else:
             self.model_name = 'normal'
             self.tokenizer = dictionary
-        self.max_length = max_length
 
+        self.max_length = max_length
     def __getitem__(self, i):
-        data = self.data.iloc[i]
+
+        data = self.data.iloc[i] # 第 i 行
+
         text = data['text']
         labels = int(data['category_id'])
+
         attention_mask, token_type_ids = [0], [0]
+
         if 'bert' in self.model_name:
-            # 如果是bert类模型， 使用tokenizer 的encode_plus方法处理数据
+            # 如果是 bert 类模型， 使用 tokenizer 的encode_plus方法处理数据
             text_dict = self.tokenizer.encode_plus(
                 text,  # Sentence to encode.
                 add_special_tokens=True,  # Add '[CLS]' and '[SEP]'
@@ -47,11 +51,10 @@ class MyDataset(Dataset):
                 'input_ids'], text_dict['attention_mask'], text_dict[
                     'token_type_ids']
         else:
-            # 如果是cnn rnn， transformer则使用自建的dictionary 来处理
+            # 如果是 cnn rnn， transformer 则使用自建的dictionary 来处理
             text = text.split()
-            #             print(text)
-            text = text + [0] * max(0, self.max_length - len(text)) if len(
-                text) < self.max_length else text[:self.max_length]
+
+            text = text + [0] * max(0, self.max_length - len(text)) if len(text) < self.max_length else text[:self.max_length]
             input_ids = [self.tokenizer.indexer(x) for x in text]
 
 
